@@ -294,33 +294,30 @@ function ProductCard({
 
   return (
     <div
-      className="card-hover bg-[var(--surface-1)] border border-[var(--border-default)] rounded-xl overflow-hidden flex flex-col relative animate-slide-up"
+      className="bg-white border border-[var(--border-default)] rounded-xl overflow-hidden flex flex-col relative shadow-sm hover:shadow-xl transition-all duration-300 animate-slide-up"
       style={{ animationDelay: `${index * 0.05}s`, animationFillMode: "both" }}
     >
       {/* Image */}
-      <div className="aspect-[4/3] bg-[var(--surface-2)] overflow-hidden relative group">
+      <div className="aspect-[4/3] bg-[var(--surface-2)] overflow-hidden relative group p-4 flex items-center justify-center">
         {product.imageUrl ? (
           <Image
             src={product.imageUrl}
             alt={product.name}
             fill
-            className="object-cover opacity-80 group-hover:opacity-100 group-hover:scale-105 transition-all duration-500 ease-out"
+            className="object-cover transition-all duration-500 ease-out group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="font-mono text-[var(--text-muted)] text-xs">
-              {product.sku}
+          <div className="w-16 h-16 rounded-full bg-[var(--surface-3)] flex items-center justify-center">
+            <span className="font-sans text-[var(--text-muted)] text-sm">
+              {product.sku.substring(0, 3)}
             </span>
           </div>
         )}
 
-        {/* Overlay gradient */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[var(--surface-1)] via-transparent to-transparent opacity-60" />
-
         {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/70 flex items-center justify-center backdrop-blur-[2px]">
-            <span className="font-mono text-xs text-[var(--danger)] border border-[var(--danger)] px-4 py-1.5 bg-[var(--danger-bg)]/80 rounded-sm shadow-lg">
+          <div className="absolute inset-0 bg-white/60 flex items-center justify-center backdrop-blur-[2px]">
+            <span className="font-sans text-xs font-semibold text-[var(--danger)] border border-[var(--danger)] px-4 py-1.5 bg-white rounded-full shadow-md">
               OUT OF STOCK
             </span>
           </div>
@@ -328,57 +325,39 @@ function ProductCard({
       </div>
 
       {/* Content */}
-      <div className="p-6 flex flex-col flex-1 relative z-10">
+      <div className="p-6 flex flex-col flex-1 relative z-10 bg-white border-t border-[var(--border-subtle)]">
         <div className="mb-4">
-          <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-1.5 uppercase">
+          <p className="font-sans font-medium text-xs text-[var(--gold)] mb-2 tracking-wide uppercase">
             {product.sku}
           </p>
-          <h3 className="font-bold text-[var(--text-primary)] text-lg leading-snug mb-2 group-hover:text-gradient transition-colors">
+          <h3 className="font-bold text-[var(--text-primary)] text-lg leading-snug mb-2">
             {product.name}
           </h3>
           {product.description && (
-            <p className="text-sm text-[var(--text-muted)] leading-relaxed line-clamp-2">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed line-clamp-2">
               {product.description}
             </p>
           )}
         </div>
 
-        {/* Stock per warehouse */}
-        <div className="space-y-2 mb-6 flex-1 bg-[var(--surface-0)]/50 p-3 rounded-md border border-[var(--border-subtle)]">
-          <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.2em] mb-3">
-            STOCK AVAILABILITY
-          </p>
-          {product.stock.map((s) => (
-            <div
-              key={s.warehouseId}
-              className="flex items-center justify-between text-xs"
-            >
-              <span className="text-[var(--text-secondary)] font-medium">
-                {s.warehouseName}
-              </span>
-              <StockBadge available={s.available} total={s.total} />
-            </div>
-          ))}
-        </div>
-
-        {/* Price + CTA */}
-        <div className="flex items-center justify-between mt-auto pt-4 border-t border-[var(--border-subtle)]">
-          <span className="font-mono font-bold text-gradient text-xl">
+        {/* Price */}
+        <div className="flex items-center gap-2 mb-6 mt-auto">
+          <span className="font-sans font-bold text-[var(--text-primary)] text-xl">
             ₹{product.price.toLocaleString("en-IN")}
           </span>
-          <button
-            onClick={() => !isOutOfStock && onReserve(product)}
-            disabled={isOutOfStock}
-            className="font-mono text-xs px-5 py-2.5 rounded-md bg-[var(--gold)] text-black font-bold hover:bg-[var(--gold-hover)] hover:shadow-[0_0_15px_rgba(232,197,71,0.4)] transition-all disabled:opacity-20 disabled:hover:shadow-none disabled:cursor-not-allowed group/btn"
-          >
-            <span className="flex items-center gap-1.5">
-              RESERVE{" "}
-              <span className="transition-transform group-hover/btn:translate-x-1">
-                →
-              </span>
-            </span>
-          </button>
+          <span className="text-xs text-[var(--text-faint)] line-through">
+            ₹{Math.floor(product.price * 1.4).toLocaleString("en-IN")}
+          </span>
         </div>
+
+        {/* CTA */}
+        <button
+          onClick={() => !isOutOfStock && onReserve(product)}
+          disabled={isOutOfStock}
+          className="w-full font-sans text-sm px-5 py-3 rounded-full bg-[var(--gold)] text-white font-semibold hover:bg-[var(--gold-hover)] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isOutOfStock ? "Unavailable" : "Reserve Medicine"}
+        </button>
       </div>
     </div>
   );

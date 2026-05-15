@@ -1,23 +1,17 @@
 import type { Metadata } from "next";
-import { Space_Mono, DM_Sans } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 
-const spaceMono = Space_Mono({
-  weight: ["400", "700"],
-  subsets: ["latin"],
-  variable: "--font-mono",
-});
-
-const dmSans = DM_Sans({
+const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
 });
 
 export const metadata: Metadata = {
-  title: "Allo Inventory — Multi-Warehouse Reservation System",
+  title: "Allo Health | Better Sex, Better Life",
   description:
-    "Race-condition-safe inventory reservations across multiple warehouses. Built with Next.js, Prisma, Redis, and PostgreSQL.",
+    "Science-backed solutions for sexual health, delivered with care.",
 };
 
 export default function RootLayout({
@@ -26,42 +20,60 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${spaceMono.variable} ${dmSans.variable}`}>
-      <body className="min-h-screen bg-[#0a0a0a] text-[#e8e4dc] antialiased">
-        <header className="border-b border-[#1e1e1e] glass sticky top-0 z-50">
-          <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-            <Link href="/" className="flex items-center gap-3 group">
-              <div className="w-8 h-8 bg-[#e8c547] flex items-center justify-center transition-transform group-hover:scale-110">
-                <span className="font-mono font-bold text-black text-sm">
-                  A
-                </span>
-              </div>
-              <span className="font-mono font-bold text-lg tracking-tight">
-                ALLO<span className="text-[#e8c547]">.</span>
+    <html lang="en" className={`${inter.variable}`}>
+      <body className="min-h-screen bg-[var(--surface-0)] text-[var(--text-primary)] antialiased font-sans">
+        <header className="border-b border-[var(--border-subtle)] bg-white sticky top-0 z-50 shadow-sm">
+          <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+            <Link href="/" className="flex items-center gap-2 group">
+              <span className="font-sans font-bold text-2xl tracking-tight text-[#111]">
+                allo<span className="text-[var(--gold)]">health</span>
               </span>
             </Link>
-            <nav className="flex items-center gap-6 text-xs font-mono">
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
               <Link
-                href="/"
-                className="text-[#555] hover:text-[#e8c547] transition-colors relative after:absolute after:bottom-[-2px] after:left-0 after:w-0 after:h-[1px] after:bg-[#e8c547] after:transition-all hover:after:w-full"
+                href="#"
+                className="text-[#333] hover:text-[var(--gold)] transition-colors"
               >
-                PRODUCTS
+                About Us
               </Link>
-              <span className="text-[#222] select-none">|</span>
-              <span
-                className="text-[#333] cursor-default"
-                title="Inventory management system"
+              <Link
+                href="#"
+                className="text-[#333] hover:text-[var(--gold)] transition-colors"
               >
-                v1.0
-              </span>
+                Our Services ▾
+              </Link>
+              <Link
+                href="#"
+                className="text-[#333] hover:text-[var(--gold)] transition-colors"
+              >
+                Conditions We Treat ▾
+              </Link>
+              <Link
+                href="#"
+                className="text-[#333] hover:text-[var(--gold)] transition-colors"
+              >
+                Clinics ▾
+              </Link>
+              <Link
+                href="#"
+                className="text-[#333] hover:text-[var(--gold)] transition-colors"
+              >
+                For Clinicians
+              </Link>
             </nav>
+            <div className="flex items-center gap-4">
+              <button className="px-6 py-2.5 rounded-full bg-[var(--gold)] text-white text-sm font-semibold hover:bg-[var(--gold-hover)] transition-all shadow-md">
+                Login
+              </button>
+            </div>
           </div>
         </header>
         <main>{children}</main>
-        <footer className="border-t border-[#1e1e1e] mt-20">
-          <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-between text-xs font-mono text-[#333]">
-            <span>ALLO INVENTORY © {new Date().getFullYear()}</span>
-            <span>BUILT WITH NEXT.JS + PRISMA + REDIS</span>
+        <footer className="border-t border-[var(--border-subtle)] mt-20 bg-[var(--surface-1)]">
+          <div className="max-w-7xl mx-auto px-6 py-8 flex items-center justify-center text-sm font-medium text-[var(--text-muted)]">
+            <span>
+              © {new Date().getFullYear()} Allo Health. All rights reserved.
+            </span>
           </div>
         </footer>
       </body>
