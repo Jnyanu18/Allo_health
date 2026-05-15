@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const products = await prisma.product.findMany({
       include: {
-        stock: {
+        inventory: {
           include: {
             warehouse: true,
           },
@@ -21,13 +21,13 @@ export async function GET() {
       description: product.description,
       price: Number(product.price),
       imageUrl: product.imageUrl,
-      stock: product.stock.map((s: any) => ({
-        warehouseId: s.warehouseId,
-        warehouseName: s.warehouse.name,
-        warehouseLocation: s.warehouse.location,
-        total: s.total,
-        reserved: s.reserved,
-        available: Math.max(0, s.total - s.reserved),
+      stock: product.inventory.map((i: any) => ({
+        warehouseId: i.warehouseId,
+        warehouseName: i.warehouse.name,
+        warehouseLocation: i.warehouse.location,
+        total: i.totalUnits,
+        reserved: i.reservedUnits,
+        available: Math.max(0, i.totalUnits - i.reservedUnits),
       })),
     }));
 

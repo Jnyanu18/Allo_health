@@ -18,11 +18,11 @@ export async function POST(
         return { error: "Reservation not found", status: 404 } as const;
       }
 
-      if (reservation.status === "RELEASED") {
+      if (reservation.status === "released") {
         return { reservation, status: 200 } as const; // idempotent
       }
 
-      if (reservation.status === "CONFIRMED") {
+      if (reservation.status === "confirmed") {
         return {
           error: "Cannot release a confirmed reservation",
           status: 409,
@@ -30,19 +30,19 @@ export async function POST(
       }
 
       // Release: restore reserved count
-      await tx.stock.update({
+      await tx.inventory.update({
         where: {
           productId_warehouseId: {
             productId: reservation.productId,
             warehouseId: reservation.warehouseId,
           },
         },
-        data: { reserved: { decrement: reservation.quantity } },
+        data: { reservedUnits: { decrement: reservation.quantity } },
       });
 
       const released = await tx.reservation.update({
         where: { id },
-        data: { status: "RELEASED", releasedAt: new Date() },
+        data: { status: "released", releasedAt: new Date() },
         include: { product: true, warehouse: true },
       });
 

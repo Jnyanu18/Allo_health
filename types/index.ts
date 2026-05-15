@@ -1,10 +1,12 @@
+export type ReservationStatus = "pending" | "confirmed" | "released" | "expired";
+
 export interface StockEntry {
   warehouseId: string;
   warehouseName: string;
   warehouseLocation: string;
-  total: number;
-  reserved: number;
-  available: number;
+  total: number;       // totalUnits
+  reserved: number;    // reservedUnits
+  available: number;   // totalUnits - reservedUnits
 }
 
 export interface Product {
@@ -33,7 +35,7 @@ export interface Reservation {
   warehouseName: string;
   warehouseLocation?: string;
   quantity: number;
-  status: "PENDING" | "CONFIRMED" | "RELEASED";
+  status: ReservationStatus;
   expiresAt: string;
   confirmedAt: string | null;
   releasedAt: string | null;

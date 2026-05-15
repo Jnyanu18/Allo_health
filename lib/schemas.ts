@@ -9,9 +9,10 @@ export const CreateReservationSchema = z.object({
 export type CreateReservationInput = z.infer<typeof CreateReservationSchema>;
 
 export const ReservationStatusSchema = z.enum([
-  "PENDING",
-  "CONFIRMED",
-  "RELEASED",
+  "pending",
+  "confirmed",
+  "released",
+  "expired",
 ]);
 
 export type ReservationStatusType = z.infer<typeof ReservationStatusSchema>;

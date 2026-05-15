@@ -26,34 +26,34 @@ export async function POST(
             return { error: "Reservation not found", status: 404 } as const;
           }
 
-          if (reservation.status === "CONFIRMED") {
+          if (reservation.status === "confirmed") {
             // Idempotent: already confirmed, return success
             return { reservation, status: 200 } as const;
           }
 
-          if (reservation.status === "RELEASED") {
+          if (reservation.status === "released" || reservation.status === "expired") {
             return {
-              error: "Reservation has already been released",
+              error: `Reservation has already been ${reservation.status}`,
               status: 410,
             } as const;
           }
 
           // Check expiry
           if (reservation.expiresAt <= now) {
-            // Mark as released and restore stock
+            // Mark as expired and restore stock
             await tx.reservation.update({
               where: { id },
-              data: { status: "RELEASED", releasedAt: now },
+              data: { status: "expired" },
             });
 
-            await tx.stock.update({
+            await tx.inventory.update({
               where: {
                 productId_warehouseId: {
                   productId: reservation.productId,
                   warehouseId: reservation.warehouseId,
                 },
               },
-              data: { reserved: { decrement: reservation.quantity } },
+              data: { reservedUnits: { decrement: reservation.quantity } },
             });
 
             return {
@@ -64,7 +64,7 @@ export async function POST(
           }
 
           // Confirm: decrement total stock and reserved
-          await tx.stock.update({
+          await tx.inventory.update({
             where: {
               productId_warehouseId: {
                 productId: reservation.productId,
@@ -72,14 +72,14 @@ export async function POST(
               },
             },
             data: {
-              total: { decrement: reservation.quantity },
-              reserved: { decrement: reservation.quantity },
+              totalUnits: { decrement: reservation.quantity },
+              reservedUnits: { decrement: reservation.quantity },
             },
           });
 
           const confirmed = await tx.reservation.update({
             where: { id },
-            data: { status: "CONFIRMED", confirmedAt: now },
+            data: { status: "confirmed", confirmedAt: now },
             include: { product: true, warehouse: true },
           });
 

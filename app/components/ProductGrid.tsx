@@ -60,9 +60,35 @@ function ReserveModal({
     setError(null);
 
     try {
-      // Mock network delay and bypass API since we don't have a DB locally right now
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      router.push(`/reservation/mock_res_${Date.now()}`);
+      const idempotencyKey = `${product.id}-${selectedWarehouse.warehouseId}-${Date.now()}`;
+      const res = await fetch("/api/reservations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Idempotency-Key": idempotencyKey,
+        },
+        body: JSON.stringify({
+          productId: product.id,
+          warehouseId: selectedWarehouse.warehouseId,
+          quantity,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.status === 409) {
+        setError(
+          `Not enough stock. Available: ${data.available ?? 0} unit(s). Requested: ${data.requested ?? quantity}.`,
+        );
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to create reservation");
+        return;
+      }
+
+      router.push(`/reservation/${data.id}`);
     } catch {
       setError("Network error. Please try again.");
     } finally {

@@ -7,7 +7,7 @@ import { Reservation } from "@/types";
 
 function useCountdown(expiresAt: string, status: string) {
   const [secondsLeft, setSecondsLeft] = useState<number>(() => {
-    if (status !== "PENDING") return 0;
+    if (status !== "pending") return 0;
     return Math.max(
       0,
       Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
@@ -15,7 +15,7 @@ function useCountdown(expiresAt: string, status: string) {
   });
 
   useEffect(() => {
-    if (status !== "PENDING") return;
+    if (status !== "pending") return;
 
     const interval = setInterval(() => {
       const remaining = Math.max(
@@ -40,7 +40,7 @@ function CountdownDisplay({
   status: string;
   totalDuration?: number;
 }) {
-  if (status === "CONFIRMED") {
+  if (status === "confirmed") {
     return (
       <div className="text-center animate-scale-in">
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--success-bg)] border border-[var(--success-border)] shadow-[0_0_30px_rgba(85,196,122,0.2)] mb-6">
@@ -58,7 +58,7 @@ function CountdownDisplay({
     );
   }
 
-  if (status === "RELEASED" || status === "EXPIRED") {
+  if (status === "released" || status === "expired") {
     return (
       <div className="text-center animate-scale-in">
         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--danger-bg)] border border-[var(--danger-border)] shadow-[0_0_30px_rgba(224,85,85,0.2)] mb-6">
@@ -67,7 +67,7 @@ function CountdownDisplay({
           </div>
         </div>
         <h2 className="font-bold text-2xl text-[var(--text-primary)] mb-2">
-          {status === "EXPIRED" ? "Time Expired" : "Reservation Cancelled"}
+          {status === "expired" ? "Time Expired" : "Reservation Cancelled"}
         </h2>
         <p className="font-mono text-xs text-[var(--danger)] tracking-widest">
           STOCK RETURNED TO INVENTORY
@@ -181,7 +181,7 @@ export default function ReservationClient({
   }, [reservation.id]);
 
   useEffect(() => {
-    if (reservation.status !== "PENDING") return;
+    if (reservation.status !== "pending") return;
     // Poll every 30s to sync server state
     const interval = setInterval(fetchLatest, 30000);
     return () => clearInterval(interval);
@@ -192,14 +192,29 @@ export default function ReservationClient({
     setError(null);
 
     try {
-      // Mock network delay and bypass API
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const res = await fetch(`/api/reservations/${reservation.id}/confirm`, {
+        method: "POST",
+        headers: { "Idempotency-Key": `confirm-${reservation.id}` },
+      });
 
-      setReservation((prev) => ({
-        ...prev,
-        status: "CONFIRMED",
-        confirmedAt: new Date().toISOString(),
-      }));
+      const data = await res.json();
+
+      if (res.status === 410) {
+        setError(
+          `Reservation expired at ${
+            data.expiredAt ? new Date(data.expiredAt).toLocaleTimeString() : "unknown"
+          }. Stock has been returned to inventory.`,
+        );
+        await fetchLatest();
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to confirm reservation");
+        return;
+      }
+
+      await fetchLatest();
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -212,14 +227,18 @@ export default function ReservationClient({
     setError(null);
 
     try {
-      // Mock network delay and bypass API
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const res = await fetch(`/api/reservations/${reservation.id}/release`, {
+        method: "POST",
+      });
 
-      setReservation((prev) => ({
-        ...prev,
-        status: "RELEASED",
-        releasedAt: new Date().toISOString(),
-      }));
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to cancel reservation");
+        return;
+      }
+
+      await fetchLatest();
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -227,7 +246,7 @@ export default function ReservationClient({
     }
   }
 
-  const isPending = reservation.status === "PENDING";
+  const isPending = reservation.status === "pending";
   const isExpired = isPending && secondsLeft === 0;
   const totalPrice = (reservation.productPrice ?? 0) * reservation.quantity;
 

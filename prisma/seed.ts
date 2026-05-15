@@ -296,20 +296,19 @@ async function main() {
     }),
   ]);
 
-  // Create stock entries (varying levels to make it interesting)
-  // Create stock entries dynamically for all products
+  // Create inventory entries dynamically for all products
   const warehouses = [mumbai, delhi, bangalore];
-  const stockData = products.flatMap((product) =>
+  const inventoryData = products.flatMap((product) =>
     warehouses.map((warehouse) => ({
       productId: product.id,
       warehouseId: warehouse.id,
       // Randomly assign stock between 1 and 30
-      total: Math.floor(Math.random() * 30) + 1,
-      reserved: 0,
+      totalUnits: Math.floor(Math.random() * 30) + 1,
+      reservedUnits: 0,
     })),
   );
 
-  await prisma.stock.createMany({ data: stockData });
+  await prisma.inventory.createMany({ data: inventoryData });
 
   console.log(`✅ Created ${products.length} products across 3 warehouses`);
   console.log("🎉 Seed complete!");

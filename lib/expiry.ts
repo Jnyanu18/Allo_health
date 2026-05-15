@@ -7,7 +7,7 @@ export async function releaseExpiredReservations(): Promise<number> {
   // Find expired pending reservations
   const expired = await prisma.reservation.findMany({
     where: {
-      status: "PENDING",
+      status: "pending",
       expiresAt: { lte: now },
     },
   });
@@ -15,19 +15,18 @@ export async function releaseExpiredReservations(): Promise<number> {
   if (expired.length === 0) return 0;
 
   // Process each in a transaction
-  let released = 0;
+  let releasedCount = 0;
   for (const reservation of expired) {
     try {
       await prisma.$transaction(async (tx: any) => {
         await tx.reservation.update({
           where: { id: reservation.id },
           data: {
-            status: "RELEASED",
-            releasedAt: now,
+            status: "expired",
           },
         });
 
-        await tx.stock.update({
+        await tx.inventory.update({
           where: {
             productId_warehouseId: {
               productId: reservation.productId,
@@ -35,17 +34,17 @@ export async function releaseExpiredReservations(): Promise<number> {
             },
           },
           data: {
-            reserved: { decrement: reservation.quantity },
+            reservedUnits: { decrement: reservation.quantity },
           },
         });
       });
-      released++;
+      releasedCount++;
     } catch (err) {
-      console.error(`Failed to release reservation ${reservation.id}:`, err);
+      console.error(`Failed to expire reservation ${reservation.id}:`, err);
     }
   }
 
-  return released;
+  return releasedCount;
 }
 
 // Lazy expiry check — call this before reading stock to ensure freshness
@@ -59,7 +58,7 @@ export async function lazyExpireForProduct(
     where: {
       productId,
       warehouseId,
-      status: "PENDING",
+      status: "pending",
       expiresAt: { lte: now },
     },
   });
@@ -70,12 +69,12 @@ export async function lazyExpireForProduct(
     try {
       await prisma.$transaction(async (tx: any) => {
         const updated = await tx.reservation.updateMany({
-          where: { id: reservation.id, status: "PENDING" },
-          data: { status: "RELEASED", releasedAt: now },
+          where: { id: reservation.id, status: "pending" },
+          data: { status: "expired" },
         });
 
         if (updated.count > 0) {
-          await tx.stock.update({
+          await tx.inventory.update({
             where: {
               productId_warehouseId: {
                 productId: reservation.productId,
@@ -83,7 +82,7 @@ export async function lazyExpireForProduct(
               },
             },
             data: {
-              reserved: { decrement: reservation.quantity },
+              reservedUnits: { decrement: reservation.quantity },
             },
           });
         }
