@@ -3,13 +3,21 @@ import ReservationClient from "./ReservationClient";
 import { notFound } from "next/navigation";
 
 async function getReservation(id: string): Promise<Reservation> {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-  const res = await fetch(`${baseUrl}/api/reservations/${id}`, {
-    cache: "no-store",
-  });
-  if (res.status === 404) notFound();
-  if (!res.ok) throw new Error("Failed to fetch reservation");
-  return res.json();
+  // Mock data for previewing frontend without a database
+  return {
+    id: id || "res_12345",
+    productId: "prod_1",
+    productName: "Tadalafil 10mg",
+    productPrice: 499,
+    warehouseId: "w1",
+    warehouseName: "Mumbai Central",
+    quantity: 1,
+    status: "PENDING",
+    expiresAt: new Date(Date.now() + 10 * 60000).toISOString(), // Expires in 10 minutes
+    confirmedAt: null,
+    releasedAt: null,
+    createdAt: new Date().toISOString(),
+  };
 }
 
 export default async function ReservationPage({

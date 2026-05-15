@@ -31,39 +31,27 @@ export default function RootLayout({
             </Link>
             <nav className="hidden md:flex items-center gap-8 text-sm font-medium">
               <Link
-                href="#"
+                href="/"
                 className="text-[#333] hover:text-[var(--gold)] transition-colors"
               >
-                About Us
+                Inventory
               </Link>
               <Link
                 href="#"
                 className="text-[#333] hover:text-[var(--gold)] transition-colors"
               >
-                Our Services ▾
+                Categories
               </Link>
               <Link
                 href="#"
                 className="text-[#333] hover:text-[var(--gold)] transition-colors"
               >
-                Conditions We Treat ▾
-              </Link>
-              <Link
-                href="#"
-                className="text-[#333] hover:text-[var(--gold)] transition-colors"
-              >
-                Clinics ▾
-              </Link>
-              <Link
-                href="#"
-                className="text-[#333] hover:text-[var(--gold)] transition-colors"
-              >
-                For Clinicians
+                Warehouses
               </Link>
             </nav>
             <div className="flex items-center gap-4">
               <button className="px-6 py-2.5 rounded-full bg-[var(--gold)] text-white text-sm font-semibold hover:bg-[var(--gold-hover)] transition-all shadow-md">
-                Login
+                Admin Login
               </button>
             </div>
           </div>
