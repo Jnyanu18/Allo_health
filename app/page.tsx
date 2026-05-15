@@ -2,43 +2,12 @@ import { Product } from "@/types";
 import ProductGrid from "./components/ProductGrid";
 
 async function getProducts(): Promise<Product[]> {
-  // Mock data for previewing frontend without a database
-  return [
-    {
-      id: "prod_1",
-      name: "Sony WH-1000XM5 Headphones",
-      sku: "SONY-WH1000XM5",
-      description: "Industry-leading noise canceling with Speak-to-Chat technology",
-      price: 29990,
-      imageUrl: "https://images.unsplash.com/photo-1618366712010-f4ae9c647dcb?w=400",
-      stock: [
-        { warehouseId: "w1", warehouseName: "Mumbai Central", warehouseLocation: "Mumbai", total: 15, reserved: 0, available: 15 },
-        { warehouseId: "w2", warehouseName: "Bangalore Tech Park", warehouseLocation: "Bengaluru", total: 3, reserved: 0, available: 3 }
-      ]
-    },
-    {
-      id: "prod_2",
-      name: "Apple AirPods Pro (2nd Gen)",
-      sku: "APPLE-APP2",
-      description: "Active noise cancellation, Transparency mode, Adaptive Audio",
-      price: 24900,
-      imageUrl: "https://images.unsplash.com/photo-1588156979435-379b9d802b0a?w=400",
-      stock: [
-        { warehouseId: "w1", warehouseName: "Mumbai Central", warehouseLocation: "Mumbai", total: 0, reserved: 0, available: 0 }
-      ]
-    },
-    {
-      id: "prod_3",
-      name: "Logitech MX Master 3S",
-      sku: "LOGI-MXM3S",
-      description: "8K DPI sensor, MagSpeed scroll wheel, USB-C charging",
-      price: 9995,
-      imageUrl: "https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=400",
-      stock: [
-        { warehouseId: "w2", warehouseName: "Bangalore Tech Park", warehouseLocation: "Bengaluru", total: 22, reserved: 20, available: 2 }
-      ]
-    }
-  ];
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  const res = await fetch(`${baseUrl}/api/products`, {
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error("Failed to fetch products");
+  return res.json();
 }
 
 export default async function Home() {

@@ -192,14 +192,33 @@ export default function ReservationClient({
     setError(null);
 
     try {
-      // Mock network delay and bypass API
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      setReservation(prev => ({
-        ...prev,
-        status: "CONFIRMED",
-        confirmedAt: new Date().toISOString()
-      }));
+      const res = await fetch(`/api/reservations/${reservation.id}/confirm`, {
+        method: "POST",
+        headers: {
+          "Idempotency-Key": `confirm-${reservation.id}`,
+        },
+      });
+
+      const data = await res.json();
+
+      if (res.status === 410) {
+        setError(
+          `⚠ Reservation expired at ${
+            data.expiredAt
+              ? new Date(data.expiredAt).toLocaleTimeString()
+              : "unknown"
+          }. Stock has been returned to inventory.`,
+        );
+        await fetchLatest();
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to confirm reservation");
+        return;
+      }
+
+      await fetchLatest();
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -212,14 +231,18 @@ export default function ReservationClient({
     setError(null);
 
     try {
-      // Mock network delay and bypass API
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      
-      setReservation(prev => ({
-        ...prev,
-        status: "RELEASED",
-        releasedAt: new Date().toISOString()
-      }));
+      const res = await fetch(`/api/reservations/${reservation.id}/release`, {
+        method: "POST",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? "Failed to cancel reservation");
+        return;
+      }
+
+      await fetchLatest();
     } catch {
       setError("Network error. Please try again.");
     } finally {

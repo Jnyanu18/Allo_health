@@ -95,110 +95,61 @@ async function main() {
           "https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=400",
       },
     }),
+    prisma.product.create({
+      data: {
+        name: "Google Pixel 8 Pro",
+        sku: "GOOG-P8P",
+        description: "Tensor G3, 50MP main camera, Super Actua display",
+        price: 106999,
+        imageUrl:
+          "https://images.unsplash.com/photo-1598327105666-5b89351cb315?w=400",
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Dyson V15 Detect Absolute",
+        sku: "DYSON-V15",
+        description:
+          "Laser dust detection, piezoelectric sensor, up to 60 min runtime",
+        price: 65900,
+        imageUrl:
+          "https://images.unsplash.com/photo-1558317374-067fb5f30001?w=400",
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "Herman Miller Aeron Chair",
+        sku: "HM-AERON",
+        description: "Ergonomic office chair, Size B, Graphite finish",
+        price: 135000,
+        imageUrl:
+          "https://images.unsplash.com/photo-1505843490538-5133c6c7d0e1?w=400",
+      },
+    }),
+    prisma.product.create({
+      data: {
+        name: "PlayStation 5 Console",
+        sku: "SONY-PS5",
+        description: "Ultra-High Speed SSD, Ray Tracing, 4K-TV Gaming",
+        price: 54990,
+        imageUrl:
+          "https://images.unsplash.com/photo-1606813907291-d86efa9b94db?w=400",
+      },
+    }),
   ]);
 
   // Create stock entries (varying levels to make it interesting)
-  const stockData = [
-    // Sony Headphones
-    {
-      productId: products[0].id,
-      warehouseId: mumbai.id,
-      total: 15,
+  // Create stock entries dynamically for all products
+  const warehouses = [mumbai, delhi, bangalore];
+  const stockData = products.flatMap((product) =>
+    warehouses.map((warehouse) => ({
+      productId: product.id,
+      warehouseId: warehouse.id,
+      // Randomly assign stock between 1 and 30
+      total: Math.floor(Math.random() * 30) + 1,
       reserved: 0,
-    },
-    { productId: products[0].id, warehouseId: delhi.id, total: 8, reserved: 0 },
-    {
-      productId: products[0].id,
-      warehouseId: bangalore.id,
-      total: 3,
-      reserved: 0,
-    }, // low stock!
-
-    // AirPods Pro
-    {
-      productId: products[1].id,
-      warehouseId: mumbai.id,
-      total: 25,
-      reserved: 0,
-    },
-    {
-      productId: products[1].id,
-      warehouseId: delhi.id,
-      total: 12,
-      reserved: 0,
-    },
-    {
-      productId: products[1].id,
-      warehouseId: bangalore.id,
-      total: 1,
-      reserved: 0,
-    }, // very low!
-
-    // Samsung Tab
-    {
-      productId: products[2].id,
-      warehouseId: mumbai.id,
-      total: 6,
-      reserved: 0,
-    },
-    { productId: products[2].id, warehouseId: delhi.id, total: 4, reserved: 0 },
-    {
-      productId: products[2].id,
-      warehouseId: bangalore.id,
-      total: 9,
-      reserved: 0,
-    },
-
-    // Keychron
-    {
-      productId: products[3].id,
-      warehouseId: mumbai.id,
-      total: 20,
-      reserved: 0,
-    },
-    { productId: products[3].id, warehouseId: delhi.id, total: 2, reserved: 0 }, // low!
-    {
-      productId: products[3].id,
-      warehouseId: bangalore.id,
-      total: 15,
-      reserved: 0,
-    },
-
-    // Logitech Mouse
-    {
-      productId: products[4].id,
-      warehouseId: mumbai.id,
-      total: 30,
-      reserved: 0,
-    },
-    {
-      productId: products[4].id,
-      warehouseId: delhi.id,
-      total: 18,
-      reserved: 0,
-    },
-    {
-      productId: products[4].id,
-      warehouseId: bangalore.id,
-      total: 22,
-      reserved: 0,
-    },
-
-    // Dell Monitor
-    {
-      productId: products[5].id,
-      warehouseId: mumbai.id,
-      total: 4,
-      reserved: 0,
-    },
-    { productId: products[5].id, warehouseId: delhi.id, total: 7, reserved: 0 },
-    {
-      productId: products[5].id,
-      warehouseId: bangalore.id,
-      total: 2,
-      reserved: 0,
-    }, // low!
-  ];
+    })),
+  );
 
   await prisma.stock.createMany({ data: stockData });
 
