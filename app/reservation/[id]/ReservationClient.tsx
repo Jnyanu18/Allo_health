@@ -120,34 +120,120 @@ function CountdownDisplay({
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const config = {
-    PENDING: {
+  const config: Record<string, { label: string; color: string; bg: string }> = {
+    pending: {
       label: "PENDING",
       color: "text-[var(--warning)]",
       bg: "bg-[var(--warning-bg)] border-[var(--warning-border)]",
     },
-    CONFIRMED: {
+    confirmed: {
       label: "CONFIRMED",
       color: "text-[var(--success)]",
       bg: "bg-[var(--success-bg)] border-[var(--success-border)]",
     },
-    RELEASED: {
+    released: {
       label: "RELEASED",
       color: "text-[var(--danger)]",
       bg: "bg-[var(--danger-bg)] border-[var(--danger-border)]",
     },
-  }[status] ?? {
-    label: status,
+    expired: {
+      label: "EXPIRED",
+      color: "text-[var(--text-muted)]",
+      bg: "bg-[var(--surface-2)] border-[var(--border-default)]",
+    },
+  };
+
+  const c = config[status] ?? {
+    label: status.toUpperCase(),
     color: "text-[var(--text-secondary)]",
     bg: "bg-[var(--surface-2)] border-[var(--border-default)]",
   };
 
   return (
-    <span
-      className={`font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full border \${config.bg} \${config.color} shadow-sm`}
-    >
-      {config.label}
+    <span className={`font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${c.bg} ${c.color} shadow-sm`}>
+      {c.label}
     </span>
+  );
+}
+
+function ReservationTimeline({ reservation }: { reservation: Reservation }) {
+  const events: { label: string; time: string | null; done: boolean; active: boolean; color: string }[] = [
+    {
+      label: "Reserved",
+      time: reservation.createdAt,
+      done: true,
+      active: reservation.status === "pending",
+      color: "var(--warning)",
+    },
+    {
+      label: "Confirmed",
+      time: reservation.confirmedAt,
+      done: !!reservation.confirmedAt,
+      active: reservation.status === "confirmed",
+      color: "var(--success)",
+    },
+    {
+      label: "Released",
+      time: reservation.releasedAt,
+      done: !!reservation.releasedAt || reservation.status === "released",
+      active: reservation.status === "released",
+      color: "var(--danger)",
+    },
+    {
+      label: "Expires at",
+      time: reservation.expiresAt,
+      done: reservation.status === "expired",
+      active: reservation.status === "expired",
+      color: "var(--text-muted)",
+    },
+  ];
+
+  return (
+    <div className="py-4">
+      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">Lifecycle</p>
+      <div className="relative">
+        {/* Vertical line */}
+        <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[var(--border-subtle)]" />
+        <div className="space-y-4">
+          {events.map((e) => (
+            <div key={e.label} className="flex items-start gap-3">
+              {/* Dot */}
+              <div
+                className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 mt-0.5 ${
+                  e.active
+                    ? "border-[var(--gold)] bg-[var(--warning-bg)]"
+                    : e.done
+                    ? "border-[var(--border-hover)] bg-[var(--surface-2)]"
+                    : "border-[var(--border-subtle)] bg-[var(--surface-1)]"
+                }`}
+              >
+                {e.done && (
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: e.color }}
+                  />
+                )}
+              </div>
+              {/* Content */}
+              <div className="flex-1 min-w-0 pb-1">
+                <p className={`text-sm font-semibold ${
+                  e.active ? "text-[var(--text-primary)]" : e.done ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
+                }`}>
+                  {e.label}
+                </p>
+                {e.time ? (
+                  <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
+                    {new Date(e.time).toLocaleString()}
+                  </p>
+                ) : (
+                  <p className="text-xs text-[var(--text-faint)] mt-0.5 italic">—</p>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -267,19 +353,19 @@ export default function ReservationClient({
       <div className="bg-[var(--surface-1)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-slide-up relative">
         {/* Top glow effect based on status */}
         <div
-          className={`absolute top-0 left-0 w-full h-[3px] opacity-70 \${
-           reservation.status === "CONFIRMED" ? "bg-[var(--success)] shadow-[0_0_20px_rgba(85,196,122,0.5)]" :
-           reservation.status === "RELEASED" || isExpired ? "bg-[var(--danger)] shadow-[0_0_20px_rgba(224,85,85,0.5)]" :
+          className={`absolute top-0 left-0 w-full h-[3px] opacity-70 ${
+           reservation.status === "confirmed" ? "bg-[var(--success)] shadow-[0_0_20px_rgba(85,196,122,0.5)]" :
+           reservation.status === "released" || reservation.status === "expired" || isExpired ? "bg-[var(--danger)] shadow-[0_0_20px_rgba(224,85,85,0.5)]" :
            "bg-[var(--gold)] shadow-[0_0_20px_rgba(232,197,71,0.5)] animate-shimmer"
         }`}
         />
 
         {/* Countdown header */}
         <div
-          className={`px-8 py-14 border-b border-[var(--border-subtle)] relative overflow-hidden \${
-          reservation.status === "CONFIRMED"
+          className={`px-8 py-14 border-b border-[var(--border-subtle)] relative overflow-hidden ${
+          reservation.status === "confirmed"
             ? "bg-[var(--success-bg)]/30"
-            : reservation.status === "RELEASED" || isExpired
+            : reservation.status === "released" || reservation.status === "expired" || isExpired
             ? "bg-[var(--danger-bg)]/30"
             : "bg-[var(--surface-0)]/50"
         }`}
@@ -354,6 +440,10 @@ export default function ReservationClient({
             </div>
           </div>
 
+          <div className="bg-[var(--surface-0)] rounded-lg p-6 border border-[var(--border-default)]">
+            <ReservationTimeline reservation={reservation} />
+          </div>
+
           {/* Total */}
           {totalPrice > 0 && (
             <div className="bg-[var(--surface-2)] rounded-lg p-6 border border-[var(--border-default)] flex items-center justify-between">
@@ -372,7 +462,7 @@ export default function ReservationClient({
           )}
 
           {/* Confirmed / Released details messages */}
-          {reservation.status === "CONFIRMED" && reservation.confirmedAt && (
+          {reservation.status === "confirmed" && reservation.confirmedAt && (
             <div className="bg-[var(--success-bg)] border border-[var(--success-border)] px-5 py-4 rounded-lg flex items-start gap-3">
               <span className="text-[var(--success)] mt-0.5">✓</span>
               <div>
@@ -388,7 +478,7 @@ export default function ReservationClient({
             </div>
           )}
 
-          {(reservation.status === "RELEASED" || isExpired) && (
+          {(reservation.status === "released" || reservation.status === "expired" || isExpired) && (
             <div className="bg-[var(--danger-bg)] border border-[var(--danger-border)] px-5 py-4 rounded-lg flex items-start gap-3">
               <span className="text-[var(--danger)] mt-0.5">×</span>
               <div>
@@ -442,7 +532,7 @@ export default function ReservationClient({
           </div>
         )}
 
-        {(isExpired || reservation.status === "RELEASED") && (
+        {(isExpired || reservation.status === "released" || reservation.status === "expired") && (
           <div className="px-8 py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-0)]">
             <button
               onClick={() => router.push("/")}
@@ -456,7 +546,7 @@ export default function ReservationClient({
           </div>
         )}
 
-        {reservation.status === "CONFIRMED" && (
+        {reservation.status === "confirmed" && (
           <div className="px-8 py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-0)]">
             <button
               onClick={() => router.push("/")}

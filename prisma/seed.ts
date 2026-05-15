@@ -2,9 +2,9 @@ import "dotenv/config";
 // @ts-ignore - PrismaClient is available after `prisma generate`
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
-import pg from "pg";
+import { Pool } from "pg";
 
-const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter } as any);
 
@@ -14,7 +14,7 @@ async function main() {
   // Clear existing data
   await prisma.reservation.deleteMany();
   await prisma.idempotencyKey.deleteMany();
-  await prisma.stock.deleteMany();
+  await prisma.inventory.deleteMany();
   await prisma.product.deleteMany();
   await prisma.warehouse.deleteMany();
 

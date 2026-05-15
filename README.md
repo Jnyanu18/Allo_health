@@ -226,6 +226,15 @@ Caches API responses for duplicate-request deduplication.
 
 ---
 
+## Reservation Lifecycle
+
+1. **Pending**: A customer proceeds to checkout. `reservedUnits` is incremented. The hold is active for 10 minutes.
+2. **Confirmed**: The customer completes payment within the 10-minute window. Both `totalUnits` and `reservedUnits` are decremented. The physical stock is permanently removed.
+3. **Released**: The customer explicitly cancels or their payment fails. `reservedUnits` is decremented. The physical stock becomes available again.
+4. **Expired**: The 10-minute window passes without payment. The cleanup job (or lazy expiration) decrements `reservedUnits`. The physical stock becomes available again.
+
+---
+
 ## Concurrency Strategy
 
 ### The Problem
@@ -436,6 +445,16 @@ BASE_URL=https://your-app.vercel.app npx tsx scripts/concurrency-test.ts
 3. **Cleanup cron scalability**: A single cleanup job scanning all expired rows is fine up to ~100k reservations/day. Beyond that, partition the scan by `createdAt` range or use a queue (BullMQ, Inngest) to process expirations individually as they come due.
 
 4. **Read scalability**: `GET /api/products` hits the primary. For high read volume, add a read replica and route `findMany` queries there.
+
+---
+
+## Future Improvements
+
+If this system were to be expanded further for production scale:
+
+1. **Redis-backed Inventory Cache**: For extremely high read volume, caching available stock in Redis with a write-through invalidation strategy would reduce database load on the `/api/products` endpoint.
+2. **Event-Driven Architecture**: Moving from synchronous route handlers to an event-driven model (e.g., Kafka or SQS) for processing reservations could decouple the web servers from the database, allowing for more graceful degradation during spikes.
+3. **Distributed Locks**: To prevent PostgreSQL lock contention under heavy load, an optimistic lock in Redis using Redlock before hitting the database could act as an initial filter.
 
 ---
 

@@ -32,6 +32,14 @@ export default async function Home() {
           </span>{" "}
           while you complete checkout.
         </p>
+        <div className="mt-8">
+          <a
+            href="/test-concurrency"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg border border-[var(--gold)] text-[var(--gold)] font-mono text-sm font-bold hover:bg-[var(--gold)] hover:text-black transition-colors"
+          >
+            ⚡ RUN CONCURRENCY TEST
+          </a>
+        </div>
       </div>
 
       <ProductGrid products={products} />
