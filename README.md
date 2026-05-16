@@ -31,7 +31,7 @@ Open `http://localhost:3000`.
 
 ## How Expiry Works
 
-There are three layers. Vercel Cron runs every hour and releases all expired pending reservations. Every reserve request calls `lazyExpireForProduct(productId, warehouseId)` before checking availability. Confirm also checks `expiresAt` inside the transaction and returns `410` with `expiredAt` if the hold is stale.
+There are three layers. Vercel Cron runs once per day and releases all expired pending reservations. Every reserve request calls `lazyExpireForProduct(productId, warehouseId)` before checking availability. Confirm also checks `expiresAt` inside the transaction and returns `410` with `expiredAt` if the hold is stale.
 
 The trade-off is that expiry is eventually consistent by up to a minute unless a user touches the affected SKU sooner. The confirm-time check is the final guard.
 
