@@ -1,13 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Reservation } from "@/types";
+import type { ApiErrorResponse, Reservation } from "@/types";
 
 function useCountdown(expiresAt: string, status: string) {
-  const [secondsLeft, setSecondsLeft] = useState<number>(() => {
-    if (status !== "pending") return 0;
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    if (status !== "PENDING") return 0;
     return Math.max(
       0,
       Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
@@ -15,227 +14,38 @@ function useCountdown(expiresAt: string, status: string) {
   });
 
   useEffect(() => {
-    if (status !== "pending") return;
-
-    const interval = setInterval(() => {
+    if (status !== "PENDING") return;
+    const interval = window.setInterval(() => {
       const remaining = Math.max(
         0,
         Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000),
       );
       setSecondsLeft(remaining);
     }, 1000);
-
-    return () => clearInterval(interval);
+    return () => window.clearInterval(interval);
   }, [expiresAt, status]);
 
   return secondsLeft;
 }
 
-function CountdownDisplay({
-  seconds,
-  status,
-  totalDuration = 600,
-}: {
-  seconds: number;
-  status: string;
-  totalDuration?: number;
-}) {
-  if (status === "confirmed") {
-    return (
-      <div className="text-center animate-scale-in">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--success-bg)] border border-[var(--success-border)] shadow-[0_0_30px_rgba(85,196,122,0.2)] mb-6">
-          <div className="font-mono text-5xl font-bold text-[var(--success)]">
-            ✓
-          </div>
-        </div>
-        <h2 className="font-bold text-2xl text-[var(--text-primary)] mb-2">
-          Purchase Confirmed!
-        </h2>
-        <p className="font-mono text-xs text-[var(--success)] tracking-widest">
-          TRANSACTION SUCCESSFUL
-        </p>
-      </div>
-    );
-  }
-
-  if (status === "released" || status === "expired") {
-    return (
-      <div className="text-center animate-scale-in">
-        <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--danger-bg)] border border-[var(--danger-border)] shadow-[0_0_30px_rgba(224,85,85,0.2)] mb-6">
-          <div className="font-mono text-5xl font-bold text-[var(--danger)]">
-            ×
-          </div>
-        </div>
-        <h2 className="font-bold text-2xl text-[var(--text-primary)] mb-2">
-          {status === "expired" ? "Time Expired" : "Reservation Cancelled"}
-        </h2>
-        <p className="font-mono text-xs text-[var(--danger)] tracking-widest">
-          STOCK RETURNED TO INVENTORY
-        </p>
-      </div>
-    );
-  }
-
-  const minutes = Math.floor(seconds / 60);
-  const secs = seconds % 60;
-  const isUrgent = seconds < 60;
-
-  // Calculate progress percentage
-  const progressPercent = Math.max(
-    0,
-    Math.min(100, (seconds / totalDuration) * 100),
-  );
-
-  return (
-    <div className="text-center w-full max-w-sm mx-auto relative">
-      <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.2em] mb-4">
-        TIME REMAINING TO COMPLETE
-      </p>
-
-      <div
-        className={`font-mono text-7xl font-bold tabular-nums transition-colors tracking-tight mb-8 \${
-          isUrgent ? "text-[var(--gold)] animate-pulse shadow-[0_0_20px_rgba(232,197,71,0.2)]" : "text-gradient"
-        }`}
-      >
-        {String(minutes).padStart(2, "0")}:{String(secs).padStart(2, "0")}
-      </div>
-
-      {/* Progress bar container */}
-      <div className="h-1 w-full bg-[var(--surface-2)] rounded-full overflow-hidden mb-3 relative">
-        <div
-          className={`absolute top-0 left-0 h-full rounded-full transition-all duration-1000 ease-linear \${
-            isUrgent ? "bg-[var(--danger)]" : "bg-[var(--gold)]"
-          }`}
-          style={{ width: `\${progressPercent}%` }}
-        />
-      </div>
-
-      {isUrgent && (
-        <p className="font-mono text-[10px] text-[var(--warning)] tracking-widest animate-pulse">
-          ACT NOW — ALMOST EXPIRED
-        </p>
-      )}
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; color: string; bg: string }> = {
-    pending: {
-      label: "PENDING",
-      color: "text-[var(--warning)]",
-      bg: "bg-[var(--warning-bg)] border-[var(--warning-border)]",
-    },
-    confirmed: {
-      label: "CONFIRMED",
-      color: "text-[var(--success)]",
-      bg: "bg-[var(--success-bg)] border-[var(--success-border)]",
-    },
-    released: {
-      label: "RELEASED",
-      color: "text-[var(--danger)]",
-      bg: "bg-[var(--danger-bg)] border-[var(--danger-border)]",
-    },
-    expired: {
-      label: "EXPIRED",
-      color: "text-[var(--text-muted)]",
-      bg: "bg-[var(--surface-2)] border-[var(--border-default)]",
-    },
+function formatCountdown(secondsLeft: number) {
+  const minutes = Math.floor(secondsLeft / 60);
+  const seconds = secondsLeft % 60;
+  return {
+    minutes: String(minutes).padStart(2, "0"),
+    seconds: String(seconds).padStart(2, "0"),
   };
-
-  const c = config[status] ?? {
-    label: status.toUpperCase(),
-    color: "text-[var(--text-secondary)]",
-    bg: "bg-[var(--surface-2)] border-[var(--border-default)]",
-  };
-
-  return (
-    <span className={`font-mono text-[10px] tracking-widest px-3 py-1.5 rounded-full border ${c.bg} ${c.color} shadow-sm`}>
-      {c.label}
-    </span>
-  );
 }
 
-function ReservationTimeline({ reservation }: { reservation: Reservation }) {
-  const events: { label: string; time: string | null; done: boolean; active: boolean; color: string }[] = [
-    {
-      label: "Reserved",
-      time: reservation.createdAt,
-      done: true,
-      active: reservation.status === "pending",
-      color: "var(--warning)",
-    },
-    {
-      label: "Confirmed",
-      time: reservation.confirmedAt,
-      done: !!reservation.confirmedAt,
-      active: reservation.status === "confirmed",
-      color: "var(--success)",
-    },
-    {
-      label: "Released",
-      time: reservation.releasedAt,
-      done: !!reservation.releasedAt || reservation.status === "released",
-      active: reservation.status === "released",
-      color: "var(--danger)",
-    },
-    {
-      label: "Expires at",
-      time: reservation.expiresAt,
-      done: reservation.status === "expired",
-      active: reservation.status === "expired",
-      color: "var(--text-muted)",
-    },
-  ];
-
-  return (
-    <div className="py-4">
-      <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-4">Lifecycle</p>
-      <div className="relative">
-        {/* Vertical line */}
-        <div className="absolute left-3.5 top-4 bottom-4 w-px bg-[var(--border-subtle)]" />
-        <div className="space-y-4">
-          {events.map((e) => (
-            <div key={e.label} className="flex items-start gap-3">
-              {/* Dot */}
-              <div
-                className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center border-2 shrink-0 mt-0.5 ${
-                  e.active
-                    ? "border-[var(--gold)] bg-[var(--warning-bg)]"
-                    : e.done
-                    ? "border-[var(--border-hover)] bg-[var(--surface-2)]"
-                    : "border-[var(--border-subtle)] bg-[var(--surface-1)]"
-                }`}
-              >
-                {e.done && (
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: e.color }}
-                  />
-                )}
-              </div>
-              {/* Content */}
-              <div className="flex-1 min-w-0 pb-1">
-                <p className={`text-sm font-semibold ${
-                  e.active ? "text-[var(--text-primary)]" : e.done ? "text-[var(--text-secondary)]" : "text-[var(--text-muted)]"
-                }`}>
-                  {e.label}
-                </p>
-                {e.time ? (
-                  <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
-                    {new Date(e.time).toLocaleString()}
-                  </p>
-                ) : (
-                  <p className="text-xs text-[var(--text-faint)] mt-0.5 italic">—</p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
+function formatTime(value: string | null) {
+  if (!value) return "now";
+  return new Date(value).toLocaleTimeString([], {
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
+
+type VisualState = "PENDING" | "URGENT" | "CONFIRMED" | "RELEASED";
 
 export default function ReservationClient({
   initialReservation,
@@ -243,323 +53,591 @@ export default function ReservationClient({
   initialReservation: Reservation;
 }) {
   const router = useRouter();
-  const [reservation, setReservation] =
-    useState<Reservation>(initialReservation);
-  const [confirming, setConfirming] = useState(false);
-  const [cancelling, setCancelling] = useState(false);
+  const [reservation, setReservation] = useState(initialReservation);
   const [error, setError] = useState<string | null>(null);
-
+  const [acting, setActing] = useState<"confirm" | "release" | null>(null);
   const secondsLeft = useCountdown(reservation.expiresAt, reservation.status);
+  const isUrgent =
+    secondsLeft < 60 && secondsLeft > 0 && reservation.status === "PENDING";
+  const isExpired = secondsLeft === 0 && reservation.status === "PENDING";
+  const visualState: VisualState =
+    reservation.status === "CONFIRMED"
+      ? "CONFIRMED"
+      : reservation.status === "RELEASED" || isExpired
+        ? "RELEASED"
+        : isUrgent
+          ? "URGENT"
+          : "PENDING";
+  const timer = useMemo(() => formatCountdown(secondsLeft), [secondsLeft]);
+  const total = reservation.quantity * reservation.productPrice;
 
-  // Poll for updates if pending
   const fetchLatest = useCallback(async () => {
-    try {
-      const res = await fetch(`/api/reservations/\${reservation.id}`, {
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setReservation(data);
-      }
-    } catch {
-      // silent
-    }
+    const response = await fetch(`/api/reservations/${reservation.id}`, {
+      cache: "no-store",
+    });
+    if (!response.ok) return;
+    setReservation((await response.json()) as Reservation);
   }, [reservation.id]);
 
   useEffect(() => {
-    if (reservation.status !== "pending") return;
-    // Poll every 30s to sync server state
-    const interval = setInterval(fetchLatest, 30000);
-    return () => clearInterval(interval);
-  }, [reservation.status, fetchLatest]);
+    if (reservation.status !== "PENDING") return;
+    const interval = window.setInterval(() => {
+      void fetchLatest();
+    }, 30000);
+    return () => window.clearInterval(interval);
+  }, [fetchLatest, reservation.status]);
 
   async function handleConfirm() {
-    setConfirming(true);
+    setActing("confirm");
     setError(null);
 
     try {
-      const res = await fetch(`/api/reservations/${reservation.id}/confirm`, {
+      const response = await fetch(`/api/reservations/${reservation.id}/confirm`, {
         method: "POST",
-        headers: { "Idempotency-Key": `confirm-${reservation.id}` },
+        headers: { "Idempotency-Key": crypto.randomUUID() },
       });
+      const data = (await response.json()) as Reservation & ApiErrorResponse;
 
-      const data = await res.json();
-
-      if (res.status === 410) {
+      if (response.status === 410) {
         setError(
-          `Reservation expired at ${
-            data.expiredAt ? new Date(data.expiredAt).toLocaleTimeString() : "unknown"
-          }. Stock has been returned to inventory.`,
+          data.expiredAt
+            ? `Hold expired at ${formatTime(data.expiredAt)}. Stock returned to inventory.`
+            : "Hold expired. Stock returned to inventory.",
         );
         await fetchLatest();
         return;
       }
 
-      if (!res.ok) {
-        setError(data.error ?? "Failed to confirm reservation");
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
 
-      await fetchLatest();
+      setReservation(data);
     } catch {
-      setError("Network error. Please try again.");
+      setError("Something went wrong. Please try again.");
     } finally {
-      setConfirming(false);
+      setActing(null);
     }
   }
 
   async function handleCancel() {
-    setCancelling(true);
+    setActing("release");
     setError(null);
 
     try {
-      const res = await fetch(`/api/reservations/${reservation.id}/release`, {
+      const response = await fetch(`/api/reservations/${reservation.id}/release`, {
         method: "POST",
       });
+      const data = (await response.json()) as Reservation & ApiErrorResponse;
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error ?? "Failed to cancel reservation");
+      if (!response.ok) {
+        setError(data.error ?? "Something went wrong. Please try again.");
         return;
       }
 
+      setReservation(data);
       await fetchLatest();
     } catch {
-      setError("Network error. Please try again.");
+      setError("Something went wrong. Please try again.");
     } finally {
-      setCancelling(false);
+      setActing(null);
     }
   }
 
-  const isPending = reservation.status === "pending";
-  const isExpired = isPending && secondsLeft === 0;
-  const totalPrice = (reservation.productPrice ?? 0) * reservation.quantity;
+  const zoneStyles: Record<
+    VisualState,
+    { bg: string; border: string; label: string; labelColor: string; subtext: string; subtextColor: string }
+  > = {
+    PENDING: {
+      bg: "linear-gradient(135deg, #EDE9FE 0%, #F5F3FF 100%)",
+      border: "#DDD6FE",
+      label: "TIME REMAINING",
+      labelColor: "var(--purple-700)",
+      subtext: "Hold active — complete payment before time runs out",
+      subtextColor: "var(--purple-600)",
+    },
+    URGENT: {
+      bg: "linear-gradient(135deg, #FEE2E2 0%, #FFF5F5 100%)",
+      border: "#FECACA",
+      label: "TIME REMAINING",
+      labelColor: "var(--red-600)",
+      subtext: "Hurry — your hold is almost expired!",
+      subtextColor: "var(--red-600)",
+    },
+    CONFIRMED: {
+      bg: "linear-gradient(135deg, #D1FAE5 0%, #ECFDF5 100%)",
+      border: "#A7F3D0",
+      label: "PURCHASE CONFIRMED",
+      labelColor: "var(--green-600)",
+      subtext: "Payment confirmed — your order is queued for dispatch",
+      subtextColor: "var(--green-700)",
+    },
+    RELEASED: {
+      bg: "linear-gradient(135deg, #F1F5F9 0%, #F8FAFC 100%)",
+      border: "#E2E8F0",
+      label: isExpired ? "RESERVATION EXPIRED" : "RESERVATION RELEASED",
+      labelColor: "var(--slate-500)",
+      subtext: "Hold released — units returned to inventory",
+      subtextColor: "var(--slate-400)",
+    },
+  };
+  const zone = zoneStyles[visualState];
+
+  const statusChip =
+    visualState === "CONFIRMED"
+      ? {
+          label: "CONFIRMED",
+          bg: "var(--green-100)",
+          color: "var(--green-700)",
+          border: "var(--green-100)",
+        }
+      : visualState === "RELEASED"
+        ? {
+            label: isExpired ? "EXPIRED" : "RELEASED",
+            bg: "var(--slate-100)",
+            color: "var(--slate-500)",
+            border: "var(--slate-200)",
+          }
+        : {
+            label: "PENDING",
+            bg: "var(--amber-100)",
+            color: "var(--amber-700)",
+            border: "var(--amber-100)",
+          };
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-12">
-      {/* Back */}
-      <Link
-        href="/"
-        className="font-mono text-xs text-[var(--text-muted)] hover:text-[var(--gold)] transition-colors inline-flex items-center gap-2 mb-8 group"
+    <div style={{ maxWidth: 600, margin: "0 auto", padding: "40px 24px" }}>
+      <button
+        type="button"
+        onClick={() => router.push("/")}
+        style={{
+          fontSize: 13,
+          color: "var(--slate-400)",
+          fontFamily: "var(--font-sans)",
+          marginBottom: 28,
+          cursor: "pointer",
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          border: "none",
+          background: "none",
+          transition: "color 180ms ease",
+        }}
+        onMouseEnter={(event) => {
+          event.currentTarget.style.color = "var(--purple-700)";
+        }}
+        onMouseLeave={(event) => {
+          event.currentTarget.style.color = "var(--slate-400)";
+        }}
       >
-        <span className="transition-transform group-hover:-translate-x-1">
-          ←
-        </span>{" "}
-        BACK TO PRODUCTS
-      </Link>
+        ← Back to products
+      </button>
 
-      {/* Main card */}
-      <div className="bg-[var(--surface-1)] border border-[var(--border-default)] rounded-xl shadow-2xl overflow-hidden animate-slide-up relative">
-        {/* Top glow effect based on status */}
+      <section
+        style={{
+          background: "var(--white)",
+          border: "1px solid var(--slate-100)",
+          borderRadius: "var(--radius-2xl)",
+          boxShadow: "var(--shadow-md)",
+          overflow: "hidden",
+        }}
+      >
         <div
-          className={`absolute top-0 left-0 w-full h-[3px] opacity-70 ${
-           reservation.status === "confirmed" ? "bg-[var(--success)] shadow-[0_0_20px_rgba(85,196,122,0.5)]" :
-           reservation.status === "released" || reservation.status === "expired" || isExpired ? "bg-[var(--danger)] shadow-[0_0_20px_rgba(224,85,85,0.5)]" :
-           "bg-[var(--gold)] shadow-[0_0_20px_rgba(232,197,71,0.5)] animate-shimmer"
-        }`}
-        />
-
-        {/* Countdown header */}
-        <div
-          className={`px-8 py-14 border-b border-[var(--border-subtle)] relative overflow-hidden ${
-          reservation.status === "confirmed"
-            ? "bg-[var(--success-bg)]/30"
-            : reservation.status === "released" || reservation.status === "expired" || isExpired
-            ? "bg-[var(--danger-bg)]/30"
-            : "bg-[var(--surface-0)]/50"
-        }`}
+          style={{
+            background: zone.bg,
+            borderBottom: `1px solid ${zone.border}`,
+            padding: "36px 32px",
+            transition: "background 600ms ease, border-color 600ms ease",
+            textAlign: "center",
+          }}
         >
-          {/* Subtle background pattern */}
           <div
-            className="absolute inset-0 opacity-[0.03]"
             style={{
-              backgroundImage:
-                "radial-gradient(circle at 2px 2px, white 1px, transparent 0)",
-              backgroundSize: "24px 24px",
+              fontFamily: "var(--font-mono)",
+              fontSize: 10,
+              letterSpacing: "0.2em",
+              textTransform: "uppercase",
+              marginBottom: 12,
+              color: zone.labelColor,
             }}
-          />
+          >
+            {zone.label}
+          </div>
+          {visualState === "CONFIRMED" ? (
+            <div
+              className="scale-in"
+              style={{
+                fontFamily: "var(--font-mono)",
+                lineHeight: 1,
+                marginBottom: 10,
+                fontSize: 56,
+                color: "var(--green-600)",
+              }}
+            >
+              ✓
+            </div>
+          ) : visualState === "RELEASED" ? (
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                lineHeight: 1,
+                marginBottom: 10,
+                fontSize: 72,
+                color: "var(--slate-300)",
+              }}
+            >
+              —
+            </div>
+          ) : (
+            <div
+              className={visualState === "URGENT" ? "urgent-shake" : undefined}
+              style={{
+                fontFamily: "var(--font-mono)",
+                lineHeight: 1,
+                marginBottom: 10,
+                fontSize: 72,
+                fontWeight: 500,
+                color:
+                  visualState === "URGENT"
+                    ? "var(--red-700)"
+                    : "var(--purple-800)",
+                transition: "color 400ms ease",
+              }}
+            >
+              {timer.minutes}
+              <span className="countdown-colon">:</span>
+              {timer.seconds}
+            </div>
+          )}
+          <p
+            className={visualState === "URGENT" ? "urgent-text" : undefined}
+            style={{
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: zone.subtextColor,
+              fontWeight: visualState === "URGENT" ? 600 : 400,
+            }}
+          >
+            {zone.subtext}
+          </p>
+        </div>
 
-          <div className="relative z-10">
-            <CountdownDisplay
-              seconds={secondsLeft}
-              status={isExpired ? "EXPIRED" : reservation.status}
+        <div style={{ padding: "24px 28px" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              marginBottom: 20,
+              gap: 12,
+            }}
+          >
+            <h1
+              style={{
+                fontSize: 20,
+                fontWeight: 700,
+                color: "var(--slate-900)",
+                lineHeight: 1.2,
+                flex: 1,
+              }}
+            >
+              {reservation.productName}
+            </h1>
+            <span
+              style={{
+                flexShrink: 0,
+                marginTop: 3,
+                fontFamily: "var(--font-mono)",
+                fontSize: 10,
+                fontWeight: 500,
+                letterSpacing: "0.1em",
+                textTransform: "uppercase",
+                padding: "4px 12px",
+                borderRadius: "var(--radius-full)",
+                border: `1px solid ${statusChip.border}`,
+                background: statusChip.bg,
+                color: statusChip.color,
+              }}
+            >
+              {statusChip.label}
+            </span>
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 16,
+              marginBottom: 20,
+            }}
+          >
+            <DetailCell label="Reservation ID" mono value={reservation.id} truncate />
+            <div>
+              <DetailLabel>Warehouse</DetailLabel>
+              <div style={{ fontSize: 13, color: "var(--slate-700)", fontWeight: 500 }}>
+                {reservation.warehouseName}
+              </div>
+              <div style={{ fontSize: 11, color: "var(--slate-400)", marginTop: 2 }}>
+                {reservation.warehouseCity}
+              </div>
+            </div>
+            <DetailCell
+              label="Quantity"
+              value={`${reservation.quantity} unit${reservation.quantity > 1 ? "s" : ""}`}
+            />
+            <DetailCell
+              label="Expires at"
+              mono
+              value={formatTime(reservation.expiresAt)}
             />
           </div>
-        </div>
 
-        {/* Order details */}
-        <div className="px-8 py-8 space-y-8 bg-[var(--surface-1)] relative z-10">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div
+            style={{
+              borderTop: "1px solid var(--slate-100)",
+              paddingTop: 18,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+            }}
+          >
             <div>
-              <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-1.5">
-                RESERVING
-              </p>
-              <h1 className="font-bold text-[var(--text-primary)] text-2xl">
-                {reservation.productName}
-              </h1>
-            </div>
-            <StatusBadge status={isExpired ? "EXPIRED" : reservation.status} />
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 p-6 bg-[var(--surface-0)]/50 rounded-lg border border-[var(--border-subtle)]">
-            <div>
-              <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-2">
-                RESERVATION ID
-              </p>
-              <p
-                className="font-mono text-[var(--text-secondary)] text-sm truncate bg-[var(--surface-2)] px-2 py-1 rounded inline-block max-w-full"
-                title={reservation.id}
-              >
-                {reservation.id.substring(0, 12)}...
-              </p>
-            </div>
-            <div>
-              <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-2">
-                WAREHOUSE
-              </p>
-              <p className="text-[var(--text-primary)] font-medium text-sm">
-                {reservation.warehouseName}
-              </p>
-            </div>
-            <div>
-              <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-2">
-                QUANTITY
-              </p>
-              <p className="text-[var(--text-primary)] font-medium text-sm">
-                {reservation.quantity} unit(s)
-              </p>
-            </div>
-            <div>
-              <p className="font-mono text-[10px] text-[var(--text-muted)] tracking-widest mb-2">
-                EXPIRES AT
-              </p>
-              <p className="text-[var(--text-primary)] font-medium text-sm">
-                {new Date(reservation.expiresAt).toLocaleTimeString()}
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-[var(--surface-0)] rounded-lg p-6 border border-[var(--border-default)]">
-            <ReservationTimeline reservation={reservation} />
-          </div>
-
-          {/* Total */}
-          {totalPrice > 0 && (
-            <div className="bg-[var(--surface-2)] rounded-lg p-6 border border-[var(--border-default)] flex items-center justify-between">
-              <div>
-                <span className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.2em] block mb-1">
-                  TOTAL PAYABLE
-                </span>
-                <span className="text-xs text-[var(--text-secondary)]">
-                  Includes all taxes
-                </span>
+              <div style={{ fontSize: 12, color: "var(--slate-400)", marginBottom: 4 }}>
+                Total payable
               </div>
-              <span className="font-mono font-bold text-gradient text-3xl">
-                ₹{totalPrice.toLocaleString("en-IN")}
-              </span>
-            </div>
-          )}
-
-          {/* Confirmed / Released details messages */}
-          {reservation.status === "confirmed" && reservation.confirmedAt && (
-            <div className="bg-[var(--success-bg)] border border-[var(--success-border)] px-5 py-4 rounded-lg flex items-start gap-3">
-              <span className="text-[var(--success)] mt-0.5">✓</span>
-              <div>
-                <p className="text-sm font-medium text-[var(--success)] mb-1">
-                  Payment Verified
-                </p>
-                <p className="font-mono text-xs text-[var(--success)]/80">
-                  Confirmed at{" "}
-                  {new Date(reservation.confirmedAt).toLocaleTimeString()} —
-                  Thank you for your purchase.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {(reservation.status === "released" || reservation.status === "expired" || isExpired) && (
-            <div className="bg-[var(--danger-bg)] border border-[var(--danger-border)] px-5 py-4 rounded-lg flex items-start gap-3">
-              <span className="text-[var(--danger)] mt-0.5">×</span>
-              <div>
-                <p className="text-sm font-medium text-[var(--danger)] mb-1">
-                  Reservation Voided
-                </p>
-                <p className="font-mono text-xs text-[var(--danger)]/80">
-                  This reservation has been released and units are returned to
-                  general inventory.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Error display */}
-          {error && (
-            <div className="border border-[var(--danger-border)] bg-[var(--danger-bg)] px-5 py-4 rounded-lg animate-slide-down">
-              <p className="font-mono text-xs text-[var(--danger)] leading-relaxed">
-                ⚠ {error}
-              </p>
-            </div>
-          )}
-        </div>
-
-        {/* Actions */}
-        {isPending && !isExpired && (
-          <div className="px-8 py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-0)] flex flex-col sm:flex-row gap-4">
-            <button
-              onClick={handleCancel}
-              disabled={cancelling || confirming}
-              className="flex-1 px-6 py-4 rounded-lg border border-[var(--border-default)] text-[var(--text-muted)] hover:text-[var(--danger)] hover:border-[var(--danger-border)] hover:bg-[var(--danger-bg)] transition-all font-mono text-sm font-bold disabled:opacity-40"
-            >
-              {cancelling ? "CANCELLING..." : "CANCEL RESERVATION"}
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={confirming || cancelling}
-              className="flex-[2] px-6 py-4 rounded-lg bg-[var(--gold)] text-black font-mono font-bold text-sm hover:bg-[var(--gold-hover)] hover:shadow-[0_0_20px_rgba(232,197,71,0.3)] transition-all disabled:opacity-40 disabled:hover:shadow-none disabled:cursor-not-allowed group"
-            >
-              {confirming ? (
-                <span className="animate-pulse">PROCESSING PAYMENT...</span>
-              ) : (
-                <span className="flex items-center justify-center gap-2">
-                  CONFIRM & PAY{" "}
-                  <span className="transition-transform group-hover:translate-x-1">
-                    →
-                  </span>
-                </span>
+              {visualState === "CONFIRMED" && (
+                <div style={{ fontSize: 10, color: "var(--slate-300)" }}>
+                  (incl. GST)
+                </div>
               )}
-            </button>
+            </div>
+            <div
+              style={{
+                fontFamily: "var(--font-mono)",
+                fontSize: 32,
+                fontWeight: 500,
+                color: "var(--purple-800)",
+                letterSpacing: "-0.01em",
+              }}
+            >
+              ₹{total.toLocaleString("en-IN")}
+            </div>
+          </div>
+        </div>
+
+        {visualState === "CONFIRMED" && (
+          <StateBanner
+            tone="success"
+            text={`Confirmed at ${formatTime(reservation.confirmedAt)}. Your order has been queued for dispatch from ${reservation.warehouseName}. You will receive a confirmation shortly.`}
+          />
+        )}
+        {visualState === "RELEASED" && (
+          <StateBanner
+            tone="error"
+            text={
+              isExpired
+                ? `Hold expired at ${formatTime(reservation.expiresAt)}. Stock returned to inventory.`
+                : `Hold released at ${formatTime(reservation.releasedAt)}. Stock has been returned to available inventory. Please reserve again if still interested.`
+            }
+          />
+        )}
+        {error && (
+          <div
+            style={{
+              margin: "0 24px 16px",
+              padding: "12px 14px",
+              background: "var(--red-50)",
+              borderLeft: "3px solid var(--red-600)",
+              borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+              color: "var(--slate-700)",
+              fontSize: 13,
+              lineHeight: 1.55,
+            }}
+          >
+            ⚠ {error}
           </div>
         )}
 
-        {(isExpired || reservation.status === "released" || reservation.status === "expired") && (
-          <div className="px-8 py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-0)]">
+        <div
+          style={{
+            padding: "20px 24px 24px",
+            borderTop: "1px solid var(--slate-100)",
+            display: "flex",
+            gap: 10,
+          }}
+        >
+          {visualState === "PENDING" || visualState === "URGENT" ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCancel}
+                disabled={acting !== null}
+                style={{
+                  flex: 1,
+                  height: 48,
+                  background: "var(--slate-100)",
+                  border: "none",
+                  borderRadius: "var(--radius-full)",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: "var(--slate-700)",
+                  transition: "all 180ms ease",
+                }}
+              >
+                {acting === "release" ? "Cancelling..." : "Cancel Hold"}
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirm}
+                disabled={acting !== null}
+                className="reserve-button"
+                style={{ flex: 2, height: 48, fontSize: 14 }}
+              >
+                {acting === "confirm" ? (
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                    <span
+                      style={{
+                        width: 16,
+                        height: 16,
+                        borderRadius: "50%",
+                        border: "2px solid rgba(255,255,255,0.4)",
+                        borderTopColor: "white",
+                        animation: "spin 700ms linear infinite",
+                      }}
+                    />
+                    Processing...
+                  </span>
+                ) : (
+                  "Confirm Purchase →"
+                )}
+              </button>
+            </>
+          ) : visualState === "CONFIRMED" ? (
             <button
+              type="button"
               onClick={() => router.push("/")}
-              className="w-full px-6 py-4 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--border-hover)] hover:bg-[var(--surface-2)] transition-all font-mono text-sm font-bold group"
+              style={{
+                width: "100%",
+                height: 48,
+                background: "linear-gradient(135deg, #047857, #059669)",
+                border: "none",
+                borderRadius: "var(--radius-full)",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "white",
+                boxShadow: "0 2px 8px rgba(5,150,105,0.3)",
+              }}
             >
-              <span className="transition-transform group-hover:-translate-x-1 inline-block mr-2">
-                ←
-              </span>{" "}
-              BROWSE OTHER PRODUCTS
+              Continue Shopping →
             </button>
-          </div>
-        )}
+          ) : (
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              style={{
+                width: "100%",
+                height: 48,
+                background: "var(--slate-100)",
+                border: "1px solid var(--slate-200)",
+                borderRadius: "var(--radius-full)",
+                fontSize: 14,
+                fontWeight: 600,
+                color: "var(--slate-700)",
+              }}
+            >
+              Browse Products →
+            </button>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}
 
-        {reservation.status === "confirmed" && (
-          <div className="px-8 py-6 border-t border-[var(--border-subtle)] bg-[var(--surface-0)]">
-            <button
-              onClick={() => router.push("/")}
-              className="w-full px-6 py-4 rounded-lg bg-[var(--success)] text-black font-mono font-bold text-sm hover:bg-[#66d48a] hover:shadow-[0_0_20px_rgba(85,196,122,0.3)] transition-all group"
-            >
-              CONTINUE SHOPPING{" "}
-              <span className="transition-transform group-hover:translate-x-1 inline-block ml-2">
-                →
-              </span>
-            </button>
-          </div>
-        )}
+function DetailLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        fontFamily: "var(--font-mono)",
+        fontSize: 9,
+        letterSpacing: "0.16em",
+        textTransform: "uppercase",
+        color: "var(--slate-400)",
+        marginBottom: 5,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
+function DetailCell({
+  label,
+  value,
+  mono = false,
+  truncate = false,
+}: {
+  label: string;
+  value: string;
+  mono?: boolean;
+  truncate?: boolean;
+}) {
+  return (
+    <div>
+      <DetailLabel>{label}</DetailLabel>
+      <div
+        title={value}
+        style={{
+          fontSize: mono ? 10 : 13,
+          color: mono ? "var(--slate-400)" : "var(--slate-700)",
+          fontWeight: 500,
+          fontFamily: mono ? "var(--font-mono)" : "var(--font-sans)",
+          overflow: truncate ? "hidden" : undefined,
+          textOverflow: truncate ? "ellipsis" : undefined,
+          whiteSpace: truncate ? "nowrap" : undefined,
+        }}
+      >
+        {value}
       </div>
+    </div>
+  );
+}
+
+function StateBanner({ tone, text }: { tone: "success" | "error"; text: string }) {
+  const success = tone === "success";
+  return (
+    <div
+      style={{
+        margin: "0 24px 16px",
+        padding: "14px 16px",
+        background: success ? "var(--green-50)" : "var(--red-50)",
+        borderLeft: `3px solid ${success ? "var(--green-500)" : "var(--red-400)"}`,
+        borderRadius: "0 var(--radius-md) var(--radius-md) 0",
+        display: "flex",
+        gap: 10,
+        alignItems: "flex-start",
+      }}
+    >
+      <span
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: "50%",
+          background: success ? "var(--green-100)" : "var(--red-100)",
+          color: success ? "var(--green-600)" : "var(--red-600)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flexShrink: 0,
+          fontSize: 13,
+        }}
+      >
+        {success ? "✓" : "⚠"}
+      </span>
+      <p style={{ fontSize: 13, color: "var(--slate-700)", lineHeight: 1.6 }}>
+        {text}
+      </p>
     </div>
   );
 }

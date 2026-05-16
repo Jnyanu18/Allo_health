@@ -1,18 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  try {
-    const warehouses = await prisma.warehouse.findMany({
-      orderBy: { name: "asc" },
-    });
+export const dynamic = "force-dynamic";
 
-    return NextResponse.json(warehouses);
-  } catch (error) {
-    console.error("GET /api/warehouses error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch warehouses" },
-      { status: 500 },
-    );
-  }
+export async function GET() {
+  const warehouses = await prisma.warehouse.findMany({
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, city: true, state: true },
+  });
+
+  return NextResponse.json(warehouses, {
+    headers: { "Cache-Control": "no-store" },
+  });
 }

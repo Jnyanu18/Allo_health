@@ -1,325 +1,130 @@
 import "dotenv/config";
-// @ts-ignore - PrismaClient is available after `prisma generate`
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-const adapter = new PrismaPg(pool);
-const prisma = new PrismaClient({ adapter } as any);
+const prisma = new PrismaClient();
+
+const products = [
+  {
+    name: "Sexual Health Profile Plus",
+    sku: "ALLO-SHP-PLUS",
+    price: 6999,
+    description:
+      "Comprehensive panel - 12 tests incl. testosterone, metabolic markers",
+    category: "Diagnostic",
+    imageUrl: "🧪",
+    stock: [12, 8, 3],
+  },
+  {
+    name: "Asymptomatic STD Early Detection Panel",
+    sku: "ALLO-STD-PANEL",
+    price: 4999,
+    description:
+      "4-test panel for recent exposure under 21 days. Discreet home kit.",
+    category: "Diagnostic",
+    imageUrl: "🔬",
+    stock: [20, 15, 1],
+  },
+  {
+    name: "Testosterone Boost Formula - 60 Capsules",
+    sku: "ALLO-TEST-60",
+    price: 1899,
+    description:
+      "Science-backed supplement blend for hormonal balance and vitality.",
+    category: "Supplement",
+    imageUrl: "💊",
+    stock: [35, 28, 22],
+  },
+  {
+    name: "Delay Spray - Extra Strength",
+    sku: "ALLO-DELAY-ES",
+    price: 799,
+    description:
+      "Clinically tested delay formula. Fast-acting, discreet packaging.",
+    category: "Topical",
+    imageUrl: "🧴",
+    stock: [0, 0, 0],
+  },
+  {
+    name: "Complete Couple Wellness Kit",
+    sku: "ALLO-COUPLE-KIT",
+    price: 8999,
+    description:
+      "His + hers panel - 20 comprehensive tests + consultation included.",
+    category: "Diagnostic",
+    imageUrl: "🩺",
+    stock: [5, 3, 7],
+  },
+  {
+    name: "Vitamin D3 + Zinc Complex - 90 Tabs",
+    sku: "ALLO-VIT-D3Z",
+    price: 649,
+    description:
+      "Essential micronutrients supporting reproductive health and immunity.",
+    category: "Supplement",
+    imageUrl: "🌿",
+    stock: [50, 40, 30],
+  },
+];
 
 async function main() {
-  console.log("🌱 Seeding database...");
-
-  // Clear existing data
-  await prisma.reservation.deleteMany();
   await prisma.idempotencyKey.deleteMany();
-  await prisma.inventory.deleteMany();
+  await prisma.reservation.deleteMany();
+  await prisma.stock.deleteMany();
   await prisma.product.deleteMany();
   await prisma.warehouse.deleteMany();
 
-  // Create warehouses
-  const [mumbai, delhi, bangalore] = await Promise.all([
+  const warehouses = await Promise.all([
     prisma.warehouse.create({
-      data: { name: "Mumbai Central", location: "Mumbai, Maharashtra" },
+      data: {
+        name: "Mumbai Central Warehouse",
+        city: "Mumbai",
+        state: "Maharashtra",
+      },
     }),
     prisma.warehouse.create({
-      data: { name: "Delhi North", location: "New Delhi, Delhi" },
+      data: {
+        name: "Delhi North Fulfilment Hub",
+        city: "New Delhi",
+        state: "Delhi",
+      },
     }),
     prisma.warehouse.create({
-      data: { name: "Bangalore Tech Park", location: "Bengaluru, Karnataka" },
-    }),
-  ]);
-
-  // Create products
-  const products = await Promise.all([
-    prisma.product.create({
       data: {
-        name: "Tadalafil 10mg",
-        sku: "MED-TAD10",
-        description:
-          "Clinically proven treatment for ED. Long-lasting up to 36 hours.",
-        price: 499,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Sildenafil 50mg",
-        sku: "MED-SIL50",
-        description:
-          "Fast-acting ED treatment. Effects start within 30-60 minutes.",
-        price: 399,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Dapoxetine 30mg",
-        sku: "MED-DAP30",
-        description: "Effective treatment for Premature Ejaculation (PE).",
-        price: 599,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Testosterone Booster",
-        sku: "SUPP-TEST",
-        description:
-          "Natural herbal blend to support healthy testosterone levels.",
-        price: 899,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Ashwagandha KSM-66",
-        sku: "SUPP-ASHWA",
-        description:
-          "Premium ashwagandha extract to reduce stress and boost vitality.",
-        price: 649,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Men's Daily Multivitamin",
-        sku: "SUPP-MULTI",
-        description: "Comprehensive blend of essential vitamins and minerals.",
-        price: 449,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Delay Spray (Lidocaine)",
-        sku: "MED-SPRAY",
-        description:
-          "Desensitizing spray for enhanced endurance and performance.",
-        price: 349,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Minoxidil 5% Topical",
-        sku: "MED-MINOX",
-        description: "Clinically proven topical solution for hair regrowth.",
-        price: 799,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Biotin Gummies",
-        sku: "SUPP-BIOTIN",
-        description: "Tasty gummies to support healthy hair, skin, and nails.",
-        price: 549,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Shilajit Resin",
-        sku: "SUPP-SHILAJIT",
-        description: "Pure Himalayan Shilajit for natural energy and stamina.",
-        price: 1299,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Finasteride 1mg",
-        sku: "MED-FIN1",
-        description: "Oral medication to treat male pattern hair loss.",
-        price: 699,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Saw Palmetto Extract",
-        sku: "SUPP-SAW",
-        description: "Natural DHT blocker to support prostate and hair health.",
-        price: 599,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Omega-3 Fish Oil",
-        sku: "SUPP-OMEGA",
-        description: "High-EPA and DHA for heart, joint, and brain health.",
-        price: 849,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Vitamin D3 60,000 IU",
-        sku: "SUPP-D3",
-        description: "High-potency weekly dose for bone and immune health.",
-        price: 199,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "L-Arginine 1000mg",
-        sku: "SUPP-ARG",
-        description: "Amino acid that boosts nitric oxide and blood flow.",
-        price: 549,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "ZMA (Zinc + Magnesium)",
-        sku: "SUPP-ZMA",
-        description:
-          "Essential minerals for muscle recovery and sleep quality.",
-        price: 699,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Maca Root Extract",
-        sku: "SUPP-MACA",
-        description:
-          "Peruvian superfood known to naturally enhance libido and energy.",
-        price: 499,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Ketoconazole 2% Shampoo",
-        sku: "MED-KETO",
-        description:
-          "Antifungal shampoo to treat dandruff and support hair growth.",
-        price: 349,
-        imageUrl:
-          "https://images.unsplash.com/photo-1584308666744-24d5e478eb13?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Plant-Based DHT Blocker",
-        sku: "SUPP-DHT",
-        description:
-          "Advanced formula targeting the root causes of hair thinning.",
-        price: 899,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Melatonin 10mg",
-        sku: "SUPP-MEL",
-        description:
-          "Sleep aid to help you fall asleep faster and stay asleep longer.",
-        price: 299,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Probiotics 50 Billion CFU",
-        sku: "SUPP-PROBIO",
-        description: "Gut health support with 10 distinct bacterial strains.",
-        price: 799,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Curcumin Extract 95%",
-        sku: "SUPP-CURC",
-        description: "Potent anti-inflammatory and antioxidant joint support.",
-        price: 649,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Panax Ginseng",
-        sku: "SUPP-GINSENG",
-        description: "Traditional herb to improve focus, stamina, and energy.",
-        price: 599,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Horny Goat Weed Extract",
-        sku: "SUPP-HGW",
-        description: "Standardized extract to support blood flow and drive.",
-        price: 449,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
-      },
-    }),
-    prisma.product.create({
-      data: {
-        name: "Tribulus Terrestris",
-        sku: "SUPP-TRIB",
-        description:
-          "Natural herb to support male vitality and athletic performance.",
-        price: 549,
-        imageUrl:
-          "https://images.unsplash.com/photo-1628771065518-0d82f1938462?w=400",
+        name: "Bangalore Tech Park Store",
+        city: "Bengaluru",
+        state: "Karnataka",
       },
     }),
   ]);
 
-  // Create inventory entries dynamically for all products
-  const warehouses = [mumbai, delhi, bangalore];
-  const inventoryData = products.flatMap((product) =>
-    warehouses.map((warehouse) => ({
-      productId: product.id,
-      warehouseId: warehouse.id,
-      // Randomly assign stock between 1 and 30
-      totalUnits: Math.floor(Math.random() * 30) + 1,
-      reservedUnits: 0,
-    })),
-  );
+  for (const product of products) {
+    const created = await prisma.product.create({
+      data: {
+        name: product.name,
+        sku: product.sku,
+        price: product.price,
+        description: product.description,
+        category: product.category,
+        imageUrl: product.imageUrl,
+      },
+    });
 
-  await prisma.inventory.createMany({ data: inventoryData });
-
-  console.log(`✅ Created ${products.length} products across 3 warehouses`);
-  console.log("🎉 Seed complete!");
+    await prisma.stock.createMany({
+      data: warehouses.map((warehouse, index) => ({
+        productId: created.id,
+        warehouseId: warehouse.id,
+        total: product.stock[index],
+        reserved: 0,
+      })),
+    });
+  }
 }
 
 main()
-  .catch((e) => {
-    console.error(e);
+  .catch((error) => {
+    console.error(error);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-    await pool.end();
   });

@@ -1,12 +1,12 @@
-export type ReservationStatus = "pending" | "confirmed" | "released" | "expired";
+export type ReservationStatus = "PENDING" | "CONFIRMED" | "RELEASED";
 
 export interface StockEntry {
   warehouseId: string;
   warehouseName: string;
-  warehouseLocation: string;
-  total: number;       // totalUnits
-  reserved: number;    // reservedUnits
-  available: number;   // totalUnits - reservedUnits
+  warehouseCity: string;
+  total: number;
+  reserved: number;
+  available: number;
 }
 
 export interface Product {
@@ -15,6 +15,7 @@ export interface Product {
   sku: string;
   description: string | null;
   price: number;
+  category: string;
   imageUrl: string | null;
   stock: StockEntry[];
 }
@@ -22,22 +23,31 @@ export interface Product {
 export interface Warehouse {
   id: string;
   name: string;
-  location: string;
+  city: string;
+  state: string;
 }
 
 export interface Reservation {
   id: string;
   productId: string;
   productName: string;
-  productSku?: string;
-  productPrice?: number;
+  productSku: string;
+  productPrice: number;
   warehouseId: string;
   warehouseName: string;
-  warehouseLocation?: string;
+  warehouseCity: string;
   quantity: number;
   status: ReservationStatus;
   expiresAt: string;
   confirmedAt: string | null;
   releasedAt: string | null;
   createdAt: string;
+}
+
+export interface ApiErrorResponse {
+  error: string;
+  details?: unknown;
+  available?: number;
+  requested?: number;
+  expiredAt?: string;
 }

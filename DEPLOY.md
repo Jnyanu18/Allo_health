@@ -1,44 +1,14 @@
-# Deployment Guide (Vercel + Neon + Upstash)
+# Deploy
 
-## Step 1 — Postgres (Neon, free tier)
+1. Create a hosted Postgres database in Neon or Supabase.
+2. Create an Upstash Redis database and copy the `rediss://` ioredis URL.
+3. Add `DATABASE_URL`, `DIRECT_URL`, `REDIS_URL`, `NEXT_PUBLIC_BASE_URL`, and `CRON_SECRET` in Vercel.
+4. Run `npm run db:migrate` against the hosted database.
+5. Run `npm run db:seed` once to load the Allo demo products and warehouse stock.
+6. Deploy the app on Vercel.
 
-1. Go to https://neon.tech and create a project
-2. Copy the **connection string** → `DATABASE_URL`
+Vercel Cron calls `GET /api/cron/expire-reservations` every minute. It must include:
 
-## Step 2 — Redis (Upstash, free tier)
-
-1. Go to https://upstash.com and create a Redis database
-2. Copy the **Redis URL** (starts with `rediss://`) → `REDIS_URL`
-
-## Step 3 — Push schema and seed
-
-```bash
-# In your local repo with .env.local filled in:
-npx prisma db push
-npx ts-node --compiler-options '{"module":"CommonJS"}' prisma/seed.ts
+```text
+Authorization: Bearer <CRON_SECRET>
 ```
-
-## Step 4 — Deploy to Vercel
-
-```bash
-npx vercel --prod
-```
-
-Set these environment variables in the Vercel dashboard (Settings → Environment Variables):
-
-| Key | Value |
-|-----|-------|
-| `DATABASE_URL` | Neon connection URL |
-| `REDIS_URL` | Upstash Redis URL |
-| `NEXT_PUBLIC_BASE_URL` | `https://your-app.vercel.app` |
-| `CRON_SECRET` | Any random string |
-
-## Step 5 — Verify cron
-
-The `vercel.json` configures a cron job at `* * * * *` (every minute) hitting
-`/api/cron/expire-reservations`. You can confirm it's running in the Vercel
-dashboard under Deployments → Functions → Cron Jobs.
-
-## That's it
-
-The live URL + seeded DB means reviewers can demo the full flow immediately.

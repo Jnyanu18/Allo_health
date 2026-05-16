@@ -1,73 +1,63 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   try {
-    const result = await prisma.$transaction(async (tx: any) => {
-      const reservation = await tx.reservation.findUnique({
-        where: { id },
-        include: { product: true, warehouse: true },
+    const result = await prisma.$transaction(async (tx) => {
+      const now = new Date();
+
+      // Atomic: only releases if PENDING
+      const updated = await tx.reservation.updateMany({
+        where: { id, status: "PENDING" },
+        data: { status: "RELEASED", releasedAt: now },
       });
 
-      if (!reservation) {
-        return { error: "Reservation not found", status: 404 } as const;
+      if (updated.count === 0) {
+        const existing = await tx.reservation.findUnique({ where: { id } });
+
+        if (!existing) {
+          return { status: 404 as const, body: { error: "Reservation not found" } };
+        }
+
+        if (existing.status === "RELEASED") {
+          return {
+            status: 200 as const,
+            body: { id: existing.id, status: existing.status, releasedAt: existing.releasedAt?.toISOString() ?? null },
+          };
+        }
+
+        return { status: 409 as const, body: { error: "Cannot release a confirmed reservation" } };
       }
 
-      if (reservation.status === "released") {
-        return { reservation, status: 200 } as const; // idempotent
-      }
+      // Fetch to get productId/warehouseId/quantity for stock update
+      const released = await tx.reservation.findUnique({ where: { id } });
 
-      if (reservation.status === "confirmed") {
-        return {
-          error: "Cannot release a confirmed reservation",
-          status: 409,
-        } as const;
-      }
-
-      // Release: restore reserved count
-      await tx.inventory.update({
+      await tx.stock.update({
         where: {
           productId_warehouseId: {
-            productId: reservation.productId,
-            warehouseId: reservation.warehouseId,
+            productId: released!.productId,
+            warehouseId: released!.warehouseId,
           },
         },
-        data: { reservedUnits: { decrement: reservation.quantity } },
+        data: { reserved: { decrement: released!.quantity } },
       });
 
-      const released = await tx.reservation.update({
-        where: { id },
-        data: { status: "released", releasedAt: new Date() },
-        include: { product: true, warehouse: true },
-      });
-
-      return { reservation: released, status: 200 } as const;
+      return {
+        status: 200 as const,
+        body: { id: released!.id, status: released!.status, releasedAt: released!.releasedAt?.toISOString() ?? null },
+      };
     });
 
-    if ("error" in result) {
-      const { status, ...rest } = result;
-      return NextResponse.json(rest, { status });
-    }
-
-    const { reservation } = result;
-    return NextResponse.json({
-      id: reservation.id,
-      productName: reservation.product.name,
-      warehouseName: reservation.warehouse.name,
-      quantity: reservation.quantity,
-      status: reservation.status,
-      releasedAt: reservation.releasedAt?.toISOString(),
-    });
+    return NextResponse.json(result.body, { status: result.status });
   } catch (error) {
-    console.error(`POST /api/reservations/${id}/release error:`, error);
-    return NextResponse.json(
-      { error: "Failed to release reservation" },
-      { status: 500 },
-    );
+    console.error("POST release error:", error);
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 }

@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { reservationInclude, toReservationDto } from "@/lib/dto";
 import { withIdempotency } from "@/lib/idempotency";
+import { prisma } from "@/lib/prisma";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(
   request: NextRequest,
@@ -9,104 +12,94 @@ export async function POST(
   const { id } = await params;
   const idempotencyKey = request.headers.get("Idempotency-Key");
 
-  return withIdempotency(
-    idempotencyKey,
-    `POST:/api/reservations/${id}/confirm`,
-    async () => {
-      const now = new Date();
+  try {
+    return await withIdempotency(
+      idempotencyKey,
+      `POST /api/reservations/${id}/confirm`,
+      async () => {
+        const now = new Date();
 
-      try {
-        const result = await prisma.$transaction(async (tx: any) => {
-          const reservation = await tx.reservation.findUnique({
-            where: { id },
-            include: { product: true, warehouse: true },
+        const result = await prisma.$transaction(async (tx) => {
+          // Atomic: only confirms if PENDING and within expiry window
+          const updated = await tx.reservation.updateMany({
+            where: { id, status: "PENDING", expiresAt: { gt: now } },
+            data: { status: "CONFIRMED", confirmedAt: now },
           });
 
-          if (!reservation) {
-            return { error: "Reservation not found", status: 404 } as const;
-          }
-
-          if (reservation.status === "confirmed") {
-            // Idempotent: already confirmed, return success
-            return { reservation, status: 200 } as const;
-          }
-
-          if (reservation.status === "released" || reservation.status === "expired") {
-            return {
-              error: `Reservation has already been ${reservation.status}`,
-              status: 410,
-            } as const;
-          }
-
-          // Check expiry
-          if (reservation.expiresAt <= now) {
-            // Mark as expired and restore stock
-            await tx.reservation.update({
+          if (updated.count === 0) {
+            const existing = await tx.reservation.findUnique({
               where: { id },
-              data: { status: "expired" },
+              include: reservationInclude,
             });
 
-            await tx.inventory.update({
-              where: {
-                productId_warehouseId: {
-                  productId: reservation.productId,
-                  warehouseId: reservation.warehouseId,
+            if (!existing) {
+              return { status: 404 as const, body: { error: "Reservation not found" } };
+            }
+
+            if (existing.status === "CONFIRMED") {
+              return { status: 200 as const, body: toReservationDto(existing) };
+            }
+
+            // PENDING but expired — release and return 410
+            if (existing.status === "PENDING") {
+              await tx.reservation.updateMany({
+                where: { id, status: "PENDING" },
+                data: { status: "RELEASED", releasedAt: now },
+              });
+              await tx.stock.update({
+                where: {
+                  productId_warehouseId: {
+                    productId: existing.productId,
+                    warehouseId: existing.warehouseId,
+                  },
                 },
-              },
-              data: { reservedUnits: { decrement: reservation.quantity } },
-            });
+                data: { reserved: { decrement: existing.quantity } },
+              });
+              return {
+                status: 410 as const,
+                body: {
+                  error: "Reservation expired",
+                  expiredAt: existing.expiresAt.toISOString(),
+                },
+              };
+            }
 
             return {
-              error: "Reservation has expired and stock has been released",
-              expiredAt: reservation.expiresAt.toISOString(),
-              status: 410,
-            } as const;
+              status: 410 as const,
+              body: {
+                error: "Reservation has been released",
+                expiredAt: existing.releasedAt?.toISOString() ?? existing.expiresAt.toISOString(),
+              },
+            };
           }
 
-          // Confirm: decrement total stock and reserved
-          await tx.inventory.update({
+          // Fetch confirmed reservation (needed for stock update + response)
+          const confirmed = await tx.reservation.findUnique({
+            where: { id },
+            include: reservationInclude,
+          });
+
+          await tx.stock.update({
             where: {
               productId_warehouseId: {
-                productId: reservation.productId,
-                warehouseId: reservation.warehouseId,
+                productId: confirmed!.productId,
+                warehouseId: confirmed!.warehouseId,
               },
             },
             data: {
-              totalUnits: { decrement: reservation.quantity },
-              reservedUnits: { decrement: reservation.quantity },
+              total: { decrement: confirmed!.quantity },
+              reserved: { decrement: confirmed!.quantity },
             },
           });
 
-          const confirmed = await tx.reservation.update({
-            where: { id },
-            data: { status: "confirmed", confirmedAt: now },
-            include: { product: true, warehouse: true },
-          });
-
-          return { reservation: confirmed, status: 200 } as const;
+          return { status: 200 as const, body: toReservationDto(confirmed!) };
         });
 
-        if ("error" in result) {
-          const { status, ...rest } = result;
-          return NextResponse.json(rest, { status });
-        }
-
-        const { reservation } = result;
-        return NextResponse.json({
-          id: reservation.id,
-          productName: reservation.product.name,
-          warehouseName: reservation.warehouse.name,
-          quantity: reservation.quantity,
-          status: reservation.status,
-          confirmedAt: reservation.confirmedAt?.toISOString(),
-        });
-      } catch (error) {
-        console.error(`POST /api/reservations/${id}/confirm error:`, error);
-        return NextResponse.json(
-          { error: "Failed to confirm reservation" },
-          { status: 500 },
-        );
-      }
-    },
-  );
+        return NextResponse.json(result.body, { status: result.status });
+      },
+    );
+  } catch (error) {
+    console.error("POST confirm error:", error);
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+  }
 }

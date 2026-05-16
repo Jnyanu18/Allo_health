@@ -1,8 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { reservationInclude, toReservationDto } from "@/lib/dto";
 import { prisma } from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
@@ -10,37 +13,18 @@ export async function GET(
   try {
     const reservation = await prisma.reservation.findUnique({
       where: { id },
-      include: { product: true, warehouse: true },
+      include: reservationInclude,
     });
 
     if (!reservation) {
-      return NextResponse.json(
-        { error: "Reservation not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "Reservation not found" }, { status: 404 });
     }
 
-    return NextResponse.json({
-      id: reservation.id,
-      productId: reservation.productId,
-      productName: reservation.product.name,
-      productSku: reservation.product.sku,
-      productPrice: Number(reservation.product.price),
-      warehouseId: reservation.warehouseId,
-      warehouseName: reservation.warehouse.name,
-      warehouseLocation: reservation.warehouse.location,
-      quantity: reservation.quantity,
-      status: reservation.status,
-      expiresAt: reservation.expiresAt.toISOString(),
-      confirmedAt: reservation.confirmedAt?.toISOString() ?? null,
-      releasedAt: reservation.releasedAt?.toISOString() ?? null,
-      createdAt: reservation.createdAt.toISOString(),
+    return NextResponse.json(toReservationDto(reservation), {
+      headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
-    console.error(`GET /api/reservations/${id} error:`, error);
-    return NextResponse.json(
-      { error: "Failed to fetch reservation" },
-      { status: 500 },
-    );
+    console.error("GET reservation error:", error);
+    return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
   }
 }
